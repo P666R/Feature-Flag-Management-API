@@ -43,6 +43,14 @@ REST API for managing feature flags, built with Node.js, Express, and MongoDB.
 - Express-validator for validation
 - Swagger for API documentation
 
+## API Documentation
+
+Once the server is running, you can access the Swagger documentation at:
+
+```bash
+http://localhost:3000/api-docs
+```
+
 ## Installation
 
 1. Clone the repository:
@@ -105,28 +113,6 @@ GET /api/users - Get all users (Admin only)
 GET /api/users/:id - Get specific user (Admin only)
 PUT /api/users/:id - Update user (Admin only)
 DELETE /api/users/:id - Delete user (Admin only)
-```
-
-## API Documentation
-
-Once the server is running, you can access the Swagger documentation at:
-
-```bash
-http://localhost:3000/api-docs
-```
-
-## Feature Flag Structure
-
-```json
-{
-  "id": "string",
-  "name": "string",
-  "description": "string (optional)",
-  "isEnabled": "boolean",
-  "createdBy": "string (user_id)",
-  "createdAt": "timestamp",
-  "updatedAt": "timestamp"
-}
 ```
 
 ## Error Handling
