@@ -1,20 +1,30 @@
-import morgan from 'morgan';
 import express from 'express';
-import { morganMiddleware } from './utils/logger.js';
+import morgan from 'morgan';
+import { envConfig } from './config/env.config.js';
+import { morganMiddleware, systemLogs } from './utils/logger.js';
 
-const createApp = () => {
+// * Factory function to create the Express app with dependency injection
+const createApp = ({ logger = systemLogs, env = envConfig } = {}) => {
   const app = express();
 
-  if (process.env.NODE_ENV === 'development') {
-    app.use(morgan('dev'));
-  }
-
+  // * Middleware setup
   app.use(express.json());
-
   app.use(morganMiddleware);
 
+  if (env.isDevelopment) {
+    app.use(
+      morgan('dev', {
+        stream: {
+          write: (message) => logger.debug(message.trim()), // * Log as debug to align with Winston levels
+        },
+      }),
+    );
+  }
+
+  // * Routes
   app.get('/', (req, res) => {
-    res.send('Hello World');
+    logger.info('GET / request received');
+    res.status(200).json({ message: 'Hello World' });
   });
 
   return app;

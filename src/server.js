@@ -91,18 +91,38 @@ const bootstrap = async (deps) => {
 
 // * Dependency configuration
 const initializeDependencies = () => {
-  const deps = {
+  // * Shared base dependencies
+  const baseDeps = {
     logger: systemLogs,
     env: envConfig.NODE_ENV,
-    port: envConfig.PORT,
     mongoUri: envConfig.MONGODB_URI,
-    app: createApp(),
   };
 
+  // * App specific dependencies
+  const app = createApp({ logger: baseDeps.logger, env: envConfig });
+
+  // * MongoDB specific dependencies
+  const mongoDeps = {
+    logger: baseDeps.logger,
+    mongoUri: baseDeps.mongoUri,
+  };
+  const mongoConnector = mongoConnectorFactory(mongoDeps);
+
+  // * Server specific dependencies
+  const serverDeps = {
+    app,
+    port: envConfig.PORT,
+    logger: baseDeps.logger,
+    env: baseDeps.env,
+  };
+  const serverFactory = createServer(serverDeps);
+
+  // * Return only what bootstrap needs
   return {
-    ...deps,
-    mongoConnector: mongoConnectorFactory(deps),
-    serverFactory: createServer(deps),
+    logger: baseDeps.logger,
+    mongoConnector,
+    serverFactory,
+    mongoUri: baseDeps.mongoUri,
   };
 };
 
