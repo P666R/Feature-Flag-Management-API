@@ -6,6 +6,11 @@ import { validate as isEmail } from 'email-validator';
 import { ROLES } from '../constants';
 import { systemLogs } from '../utils/logger.js';
 import { envConfig } from '../config/env.config.js';
+import {
+  InternalServerError,
+  CustomError,
+  ValidationError,
+} from '../errors/index.js';
 
 const UserSchema = new mongoose.Schema(
   {
@@ -65,22 +70,35 @@ UserSchema.pre('save', async function (next) {
     systemLogs.info('Password hashed', { email: this.email });
   } catch (error) {
     systemLogs.error('Failed to hash password', { email: this.email, error });
-    next(error);
+    next(
+      new InternalServerError('Password hashing failed', { email: this.email }),
+    );
   }
 });
 
 // * Method to generate JWT using UUID id
 UserSchema.methods.getSignedJwtToken = function () {
-  const token = jwt.sign({ id: this.id }, envConfig.JWT_SECRET, {
-    expiresIn: envConfig.JWT_EXPIRES_IN,
-  });
-  systemLogs.info('JWT generated', { email: this.email });
-  return token;
+  try {
+    const token = jwt.sign({ id: this.id }, envConfig.JWT_SECRET, {
+      expiresIn: envConfig.JWT_EXPIRES_IN,
+    });
+    systemLogs.info('JWT generated', { email: this.email });
+    return token;
+  } catch (error) {
+    systemLogs.error('Failed to generate JWT', { email: this.email, error });
+    throw new InternalServerError('JWT generation failed', {
+      email: this.email,
+    });
+  }
 };
 
 // * Method to match password
 UserSchema.methods.matchPassword = async function (enteredPassword) {
   try {
+    if (!enteredPassword) {
+      throw new ValidationError('Password is required');
+    }
+
     const isMatched = await bcrypt.compare(enteredPassword, this.password);
     systemLogs.info('Password match attempt', {
       email: this.email,
@@ -89,7 +107,11 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
     return isMatched;
   } catch (error) {
     systemLogs.error('Failed to match password', { email: this.email, error });
-    throw error;
+    throw error instanceof CustomError
+      ? error
+      : new InternalServerError('Password matching failed', {
+          email: this.email,
+        });
   }
 };
 

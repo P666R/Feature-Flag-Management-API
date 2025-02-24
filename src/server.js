@@ -2,6 +2,7 @@ import { envConfig } from './config/env.config.js';
 import createApp from './app.js';
 import { systemLogs } from './utils/logger.js';
 import createMongoConnector from './config/db.mongo.js';
+import { createErrorHandler, InternalServerError } from './errors/index.js';
 
 // * MongoDB connection factory
 const mongoConnectorFactory = createMongoConnector;
@@ -43,6 +44,8 @@ const bootstrap = async (deps) => {
     process.exit(1);
   }
 
+  const errorHandler = createErrorHandler({ logger, env: envConfig });
+
   try {
     // * Connect to MongoDB with retry logic
     await (async (retries = 5, delay = 5000) => {
@@ -53,7 +56,10 @@ const bootstrap = async (deps) => {
         } catch (error) {
           logger.error(`MongoDB connection attempt ${i + 1} failed`, error);
           if (i === retries - 1) {
-            throw error;
+            throw new InternalServerError(
+              'MongoDB connection failed after retries',
+              { attempts: retries },
+            );
           }
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
@@ -76,11 +82,11 @@ const bootstrap = async (deps) => {
     process.on('SIGINT', shutdown('SIGINT'));
 
     process.on('uncaughtException', async (error) => {
-      logger.error('Uncaught exception', error);
+      await errorHandler.handleUncaughtException(error);
       await shutdown('uncaughtException')();
     });
-    process.on('unhandledRejection', async (error) => {
-      logger.error('Unhandled promise rejection', error);
+    process.on('unhandledRejection', async (reason) => {
+      await errorHandler.handleUnhandledRejection(reason);
       await shutdown('unhandledRejection')();
     });
   } catch (error) {
