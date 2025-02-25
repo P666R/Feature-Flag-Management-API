@@ -1,7 +1,6 @@
-import { systemLogs } from '../utils/logger.js';
-import { envConfig } from '../config/env.config.js';
+import { systemLogs as logger } from '../utils/logger.js';
 
-const createErrorHandler = ({ logger = systemLogs, env = envConfig } = {}) => {
+const createErrorHandler = ({ env } = {}) => {
   // * Handle HTTP errors
   // eslint-disable-next-line no-unused-vars
   const handleHttpError = (err, req, res, next) => {

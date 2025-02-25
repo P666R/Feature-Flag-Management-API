@@ -2,9 +2,9 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { validate as isEmail } from 'email-validator';
-import { ROLES } from '../constants';
-import { systemLogs } from '../utils/logger.js';
+import validator from 'validator';
+import { ROLES } from '../constants/index.js';
+import { systemLogs as logger } from '../utils/logger.js';
 import { envConfig } from '../config/env.config.js';
 import {
   InternalServerError,
@@ -30,7 +30,7 @@ const UserSchema = new mongoose.Schema(
       required: [true, 'Please add an email'],
       unique: true,
       lowercase: true,
-      validate: [isEmail, 'Please add a valid email'],
+      validate: [validator.isEmail, 'Please add a valid email'],
     },
     password: {
       type: String,
@@ -67,11 +67,13 @@ UserSchema.pre('save', async function (next) {
   try {
     const salt = await bcrypt.genSalt(10);
     this.password = await bcrypt.hash(this.password, salt);
-    systemLogs.info('Password hashed', { email: this.email });
+    logger.info('Password hashed', { email: this.email });
   } catch (error) {
-    systemLogs.error('Failed to hash password', { email: this.email, error });
+    logger.error('Failed to hash password', { email: this.email, error });
     next(
-      new InternalServerError('Password hashing failed', { email: this.email }),
+      new InternalServerError('Password hashing failed', {
+        email: this.email,
+      }),
     );
   }
 });
@@ -82,10 +84,10 @@ UserSchema.methods.getSignedJwtToken = function () {
     const token = jwt.sign({ id: this.id }, envConfig.JWT_SECRET, {
       expiresIn: envConfig.JWT_EXPIRES_IN,
     });
-    systemLogs.info('JWT generated', { email: this.email });
+    logger.info('JWT generated', { email: this.email });
     return token;
   } catch (error) {
-    systemLogs.error('Failed to generate JWT', { email: this.email, error });
+    logger.error('Failed to generate JWT', { email: this.email, error });
     throw new InternalServerError('JWT generation failed', {
       email: this.email,
     });
@@ -100,13 +102,16 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
     }
 
     const isMatched = await bcrypt.compare(enteredPassword, this.password);
-    systemLogs.info('Password match attempt', {
+    logger.info('Password match attempt', {
       email: this.email,
       result: isMatched ? 'success' : 'failed',
     });
     return isMatched;
   } catch (error) {
-    systemLogs.error('Failed to match password', { email: this.email, error });
+    logger.error('Failed to match password', {
+      email: this.email,
+      error,
+    });
     throw error instanceof CustomError
       ? error
       : new InternalServerError('Password matching failed', {
@@ -116,4 +121,9 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
 };
 
 const UserModel = mongoose.model('User', UserSchema);
-export default UserModel;
+
+const createUserModel = () => {
+  return UserModel;
+};
+
+export default createUserModel;

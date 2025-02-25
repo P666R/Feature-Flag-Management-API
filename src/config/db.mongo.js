@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
+import { systemLogs as logger } from '../utils/logger.js';
 
 // * MongoDB connector factory
-const createMongoConnector = ({ logger, mongoUri }) => {
+const createMongoConnector = ({ mongoUri }) => {
   const connect = async (options = {}) => {
     try {
       await mongoose.connect(mongoUri, {

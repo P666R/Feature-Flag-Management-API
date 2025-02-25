@@ -1,34 +1,29 @@
 import express from 'express';
 import morgan from 'morgan';
 import { envConfig } from './config/env.config.js';
-import { morganMiddleware, systemLogs } from './utils/logger.js';
+import { morganMiddleware, systemLogs as logger } from './utils/logger.js';
 import { errorMiddleware, NotFoundError } from './errors/index.js';
+import createUserRouter from './routes/user.route.js';
+import createIndexRouter from './routes/index.route.js';
 
-// * Factory function to create the Express app with dependency injection
-const createApp = ({ logger = systemLogs, env = envConfig } = {}) => {
+// * Factory function to create the Express app
+const createApp = () => {
   const app = express();
 
-  // * Middleware setup
   app.use(express.json());
   app.use(morganMiddleware);
 
-  if (env.isDevelopment) {
+  if (envConfig.isDevelopment) {
     app.use(
       morgan('dev', {
-        stream: {
-          write: (message) => logger.debug(message.trim()), // * Log as debug to align with Winston levels
-        },
+        stream: { write: (message) => logger.debug(message.trim()) },
       }),
     );
   }
 
-  // * Routes
-  app.get('/', (req, res) => {
-    logger.info('GET / request received');
-    res.status(200).json({ message: 'Hello World' });
-  });
+  app.use('/api/v1', createIndexRouter());
+  app.use('/api/v1/users', createUserRouter());
 
-  // Catch-all route for unmatched URLs
   app.all('*', (req, res, next) => {
     next(
       new NotFoundError('Route not found', {
@@ -38,8 +33,7 @@ const createApp = ({ logger = systemLogs, env = envConfig } = {}) => {
     );
   });
 
-  // * Error handling middleware
-  app.use(errorMiddleware({ logger, env }));
+  app.use(errorMiddleware({ env: envConfig }));
 
   return app;
 };

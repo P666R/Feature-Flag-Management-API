@@ -1,17 +1,17 @@
 import { envConfig } from './config/env.config.js';
 import createApp from './app.js';
-import { systemLogs } from './utils/logger.js';
+import { systemLogs as logger } from './utils/logger.js';
 import createMongoConnector from './config/db.mongo.js';
-import { createErrorHandler, InternalServerError } from './errors/index.js';
+import { createErrorHandler } from './errors/index.js';
 
 // * MongoDB connection factory
 const mongoConnectorFactory = createMongoConnector;
 
 // * Server factory
-const createServer = ({ app, port, logger, env }) => ({
+const createServer = ({ app, port, env }) => ({
   start: () => {
     const server = app.listen(port, () => {
-      logger.info(`Server is running in ${env} mode on port ${port}`);
+      logger.info(`Server running in ${env} mode on port ${port}`);
     });
     server.setTimeout(10000);
     return server;
@@ -19,7 +19,7 @@ const createServer = ({ app, port, logger, env }) => ({
 });
 
 // * Shutdown handler factory
-const createShutdownHandler = ({ server, logger, mongoConnector }) => ({
+const createShutdownHandler = ({ server, mongoConnector }) => ({
   shutdown: (signal) => async () => {
     logger.info(`${signal} received, shutting down gracefully`);
     try {
@@ -36,15 +36,13 @@ const createShutdownHandler = ({ server, logger, mongoConnector }) => ({
 });
 
 // * Main application bootstrap
-const bootstrap = async (deps) => {
-  const { logger, mongoConnector, serverFactory, mongoUri } = deps;
-
+const bootstrap = async ({ mongoConnector, serverFactory, mongoUri }) => {
   if (!mongoUri) {
     logger.error('MONGODB_URI environment variable is required');
     process.exit(1);
   }
 
-  const errorHandler = createErrorHandler({ logger, env: envConfig });
+  const errorHandler = createErrorHandler({ env: envConfig });
 
   try {
     // * Connect to MongoDB with retry logic
@@ -56,31 +54,19 @@ const bootstrap = async (deps) => {
         } catch (error) {
           logger.error(`MongoDB connection attempt ${i + 1} failed`, error);
           if (i === retries - 1) {
-            throw new InternalServerError(
-              'MongoDB connection failed after retries',
-              { attempts: retries },
-            );
+            throw error;
           }
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
       }
     })();
 
-    // * Start server
     const server = serverFactory.start();
-
-    // * Create shutdown handler
-    const shutdownHandler = createShutdownHandler({
-      server,
-      logger,
-      mongoConnector,
-    });
+    const shutdownHandler = createShutdownHandler({ server, mongoConnector });
     const shutdown = shutdownHandler.shutdown;
 
-    // * Process event handlers
     process.on('SIGTERM', shutdown('SIGTERM'));
     process.on('SIGINT', shutdown('SIGINT'));
-
     process.on('uncaughtException', async (error) => {
       await errorHandler.handleUncaughtException(error);
       await shutdown('uncaughtException')();
@@ -90,46 +76,24 @@ const bootstrap = async (deps) => {
       await shutdown('unhandledRejection')();
     });
   } catch (error) {
-    logger.error('Failed to start the server', error);
+    logger.error('Failed to start server', error);
     process.exit(1);
   }
 };
 
 // * Dependency configuration
 const initializeDependencies = () => {
-  // * Shared base dependencies
-  const baseDeps = {
-    logger: systemLogs,
-    env: envConfig.NODE_ENV,
+  const app = createApp();
+  const mongoConnector = mongoConnectorFactory({
     mongoUri: envConfig.MONGODB_URI,
-  };
-
-  // * App specific dependencies
-  const app = createApp({ logger: baseDeps.logger, env: envConfig });
-
-  // * MongoDB specific dependencies
-  const mongoDeps = {
-    logger: baseDeps.logger,
-    mongoUri: baseDeps.mongoUri,
-  };
-  const mongoConnector = mongoConnectorFactory(mongoDeps);
-
-  // * Server specific dependencies
-  const serverDeps = {
+  });
+  const serverFactory = createServer({
     app,
     port: envConfig.PORT,
-    logger: baseDeps.logger,
-    env: baseDeps.env,
-  };
-  const serverFactory = createServer(serverDeps);
+    env: envConfig.NODE_ENV,
+  });
 
-  // * Return only what bootstrap needs
-  return {
-    logger: baseDeps.logger,
-    mongoConnector,
-    serverFactory,
-    mongoUri: baseDeps.mongoUri,
-  };
+  return { mongoConnector, serverFactory, mongoUri: envConfig.MONGODB_URI };
 };
 
 // * Start the application
