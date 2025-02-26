@@ -18,7 +18,6 @@ const UserSchema = new mongoose.Schema(
       type: String,
       default: uuidv4,
       unique: true,
-      index: true,
     },
     name: {
       type: String,
@@ -121,9 +120,4 @@ UserSchema.methods.matchPassword = async function (enteredPassword) {
 };
 
 const UserModel = mongoose.model('User', UserSchema);
-
-const createUserModel = () => {
-  return UserModel;
-};
-
-export default createUserModel;
+export default () => UserModel;
