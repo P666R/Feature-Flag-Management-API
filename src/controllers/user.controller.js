@@ -1,21 +1,9 @@
-import validator from 'validator';
 import createUserService from '../services/user.service.js';
-import { ValidationError } from '../errors/error.types.js';
 
 const createUserController = ({ userService = createUserService() } = {}) => {
   const register = async (req, res, next) => {
     try {
-      const { name, email, password } = req.body;
-
-      if (!name || !email || !password) {
-        throw new ValidationError('Name, email and password are required');
-      }
-
-      if (!validator.isEmail(email)) {
-        throw new ValidationError('Invalid email format');
-      }
-
-      const user = await userService.register({ name, email, password });
+      const user = await userService.register(req.body);
 
       res.status(201).json({ data: user });
     } catch (error) {
@@ -25,13 +13,7 @@ const createUserController = ({ userService = createUserService() } = {}) => {
 
   const login = async (req, res, next) => {
     try {
-      const { email, password } = req.body;
-
-      if (!email || !password) {
-        throw new ValidationError('Email and password are required');
-      }
-
-      const { user, token } = await userService.login({ email, password });
+      const { user, token } = await userService.login(req.body);
 
       res.status(200).json({ data: user, token });
     } catch (error) {

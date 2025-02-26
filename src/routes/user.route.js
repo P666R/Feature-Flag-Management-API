@@ -1,14 +1,27 @@
 import express from 'express';
 import createUserController from '../controllers/user.controller.js';
-import createAuthMiddleware from '../middlewares/auth.middleware.js';
+import createAuthMiddleware from '../middleware/auth.middleware.js';
+import createValidatorMiddleware from '../middleware/validator.middleware.js';
+import {
+  createUserDTOSchema,
+  loginUserDTOSchema,
+  updateUserDTOSchema,
+} from '../dtos/user.dto.js';
 
 const createUserRouter = ({ userController = createUserController() } = {}) => {
   const { authMiddleware, restrictTo } = createAuthMiddleware();
   const router = express.Router();
 
-  // * Public routes
-  router.route('/register').post(userController.register);
-  router.route('/login').post(userController.login);
+  // * Public routes with validation
+  router
+    .route('/register')
+    .post(
+      createValidatorMiddleware(createUserDTOSchema),
+      userController.register,
+    );
+  router
+    .route('/login')
+    .post(createValidatorMiddleware(loginUserDTOSchema), userController.login);
 
   // * Protected routes
   router.use(authMiddleware);
@@ -20,7 +33,10 @@ const createUserRouter = ({ userController = createUserController() } = {}) => {
   router
     .route('/:id')
     .get(userController.getUser)
-    .put(userController.updateUser)
+    .put(
+      createValidatorMiddleware(updateUserDTOSchema),
+      userController.updateUser,
+    )
     .delete(userController.deleteUser);
 
   return router;
