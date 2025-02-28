@@ -1,14 +1,14 @@
 import { systemLogs as logger } from '../utils/logger.js';
 import createFeatureRepository from '../repositories/feature.repository.js';
-import createRedisClient from '../config/db.redis.js';
+import redis from '../config/db.redis.js';
 import { envConfig } from '../config/env.config.js';
 import { NotFoundError, ForbiddenError } from '../errors/index.js';
 import crypto from 'crypto';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 
 const createFeatureService = ({
+  redisClient = redis,
   featureRepository = createFeatureRepository(),
-  redisClient = createRedisClient(),
 } = {}) => {
   const CACHE_PREFIX = 'feature:';
   let isRedisConnected = false;
@@ -18,9 +18,9 @@ const createFeatureService = ({
     isRedisConnected = true;
     logger.info('Redis connected for feature caching');
   });
-  redisClient.on('error', (err) => {
+  redisClient.on('error', (error) => {
     isRedisConnected = false;
-    logger.error('Redis connection error', { error: err });
+    logger.error('Redis connection error', { error: error });
   });
 
   const getCacheKey = (name, version, userId) =>

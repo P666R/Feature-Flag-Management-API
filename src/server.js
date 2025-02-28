@@ -3,6 +3,7 @@ import createApp from './app.js';
 import { systemLogs as logger } from './utils/logger.js';
 import createMongoConnector from './config/db.mongo.js';
 import { createErrorHandler } from './errors/index.js';
+import redisClient from './config/db.redis.js';
 
 // * MongoDB connection factory
 const mongoConnectorFactory = createMongoConnector;
@@ -27,9 +28,11 @@ const createShutdownHandler = ({ server, mongoConnector }) => ({
       logger.info('Server closed');
       await mongoConnector.disconnect();
       logger.info('MongoDB connection closed');
+      await redisClient.disconnect();
+      logger.info('Redis connection closed');
       process.exit(0);
-    } catch (err) {
-      logger.error('Error during shutdown', err);
+    } catch (error) {
+      logger.error('Error during shutdown', { error });
       process.exit(1);
     }
   },
@@ -52,7 +55,7 @@ const bootstrap = async ({ mongoConnector, serverFactory, mongoUri }) => {
           await mongoConnector.connect();
           return;
         } catch (error) {
-          logger.error(`MongoDB connection attempt ${i + 1} failed`, error);
+          logger.error(`MongoDB connection attempt ${i + 1} failed`, { error });
           if (i === retries - 1) {
             throw error;
           }
@@ -61,6 +64,7 @@ const bootstrap = async ({ mongoConnector, serverFactory, mongoUri }) => {
       }
     })();
 
+    await redisClient.connect();
     const server = serverFactory.start();
     const shutdownHandler = createShutdownHandler({ server, mongoConnector });
     const shutdown = shutdownHandler.shutdown;
@@ -76,7 +80,7 @@ const bootstrap = async ({ mongoConnector, serverFactory, mongoUri }) => {
       await shutdown('unhandledRejection')();
     });
   } catch (error) {
-    logger.error('Failed to start server', error);
+    logger.error('Failed to start server', { error });
     process.exit(1);
   }
 };

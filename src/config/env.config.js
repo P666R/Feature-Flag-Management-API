@@ -10,5 +10,5 @@ export const envConfig = cleanEnv(process.env, {
   MONGODB_URI: str(),
   JWT_SECRET: str(),
   JWT_EXPIRES_IN: str(),
-  REDIS_URL: str({ default: 'redis://localhost:6379' }),
+  REDIS_URI: str({ default: 'redis://localhost:6379' }),
 });

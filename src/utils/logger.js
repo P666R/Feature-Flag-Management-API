@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { createLogger, format, transports } from 'winston';
 
-const { combine, timestamp, json, colorize, printf } = format;
+const { combine, timestamp, colorize, printf } = format;
 
 // * Ensure logs directory exists
 const logsDir = path.join(process.cwd(), 'logs');
@@ -16,6 +16,17 @@ if (!fs.existsSync(logsDir)) {
 const isDevelopment = envConfig.isDevelopment;
 const isTest = envConfig.isTest;
 
+// * Custom format to merge message and metadata into one JSON object
+const customJsonFormat = format((info) => {
+  const { timestamp, level, message, ...metadata } = info;
+  return {
+    timestamp,
+    level,
+    message,
+    ...metadata, // * Spread metadata into the top-level object
+  };
+})();
+
 // * File rotation transports
 const fileRotateTransport = new DailyRotateFile({
   filename: 'logs/combined-%DATE%.log',
@@ -23,6 +34,7 @@ const fileRotateTransport = new DailyRotateFile({
   maxFiles: '14d',
   maxSize: '20m',
 });
+
 const errorRotateTransport = new DailyRotateFile({
   filename: 'logs/error-%DATE%.log',
   datePattern: 'YYYY-MM-DD',
@@ -31,27 +43,33 @@ const errorRotateTransport = new DailyRotateFile({
   level: 'error',
 });
 
-// * Console transport
+// * Console transport for development
 const consoleTransport = new transports.Console({
   format: combine(
     timestamp({ format: 'YYYY-MM-DD hh:mm:ss.SSS A' }),
     colorize(),
-    printf(
-      ({ level, message, timestamp }) => `${timestamp} [${level}]: ${message}`,
-    ),
+    printf(({ level, message, timestamp, ...metadata }) => {
+      const metaString = Object.keys(metadata).length
+        ? ' ' + JSON.stringify(metadata)
+        : '';
+      return `${timestamp} [${level}]: ${message}${metaString}`;
+    }),
   ),
 });
 
 const transportsList = [fileRotateTransport, errorRotateTransport];
-
 if (isDevelopment && !isTest) {
   transportsList.push(consoleTransport);
 }
 
-// * Winston logger with specified formats and transports
+// * Winston logger with combined format
 export const systemLogs = createLogger({
   level: isDevelopment ? 'debug' : 'info',
-  format: combine(timestamp({ format: 'YYYY-MM-DD hh:mm:ss.SSS A' }), json()),
+  format: combine(
+    timestamp({ format: 'YYYY-MM-DD hh:mm:ss.SSS A' }),
+    customJsonFormat,
+    format.json(),
+  ),
   transports: transportsList,
   exceptionHandlers: [
     new DailyRotateFile({
@@ -69,47 +87,22 @@ export const systemLogs = createLogger({
       maxSize: '20m',
     }),
   ],
-  exitOnError: false, // * Don’t exit on uncaught exceptions
-  silent: isTest, // * Silence logs in test environment
+  exitOnError: false,
+  silent: isTest,
 });
 
-// * Morgan middleware for logging HTTP requests without JSON parse/stringify overhead
-export const morganMiddleware = morgan(
-  (tokens, req, res) => {
-    const logData = {
-      method: tokens.method(req, res),
-      url: tokens.url(req, res),
-      status: Number.parseFloat(tokens.status(req, res)),
-      content_length: tokens.res(req, res, 'content-length') || '0', // * Fallback for undefined
-      response_time: Number.parseFloat(tokens['response-time'](req, res)),
-    };
-    systemLogs.info('incoming-request', logData); // * Log the data directly
-    return null; // * Morgan doesnt need the return value
-  },
-  {
-    stream: { write: () => {} }, // * Dummy stream since we log directly
-  },
-);
+// * Morgan middleware for HTTP request logging
+export const morganMiddleware = morgan((tokens, req, res) => {
+  const logData = {
+    method: tokens.method(req, res),
+    url: tokens.url(req, res),
+    status: Number.parseFloat(tokens.status(req, res)),
+    content_length: tokens.res(req, res, 'content-length') || '0',
+    response_time: Number.parseFloat(tokens['response-time'](req, res)),
+  };
+  systemLogs.info('incoming-request', logData);
+  return null; // * Morgan doesn't need a return value since we're logging directly
+});
 
-// * Log startup
+// Log startup
 systemLogs.info(`Logger initialized in ${envConfig.NODE_ENV} mode`);
-
-/** 
- * Morgan middleware for logging HTTP requests with JSON parse/stringify
- export const morganMiddleware = morgan(
-  (tokens, req, res) => {
-    return JSON.stringify({
-      method: tokens.method(req, res),
-      url: tokens.url(req, res),
-      status: Number.parseFloat(tokens.status(req, res)),
-      content_length: tokens.res(req, res, 'content-length') || '0',
-      response_time: Number.parseFloat(tokens['response-time'](req, res)),
-    });
-  },
-  {
-    stream: {
-      write: (message) => systemLogs.info('incoming-request', JSON.parse(message)),
-    },
-  },
-);
- */

@@ -5,6 +5,7 @@ import { morganMiddleware, systemLogs as logger } from './utils/logger.js';
 import { errorMiddleware, NotFoundError } from './errors/index.js';
 import createUserRouter from './routes/user.route.js';
 import createIndexRouter from './routes/index.route.js';
+import createFeatureRouter from './routes/feature.route.js';
 
 // * Factory function to create the Express app
 const createApp = () => {
@@ -23,6 +24,7 @@ const createApp = () => {
 
   app.use('/api/v1', createIndexRouter());
   app.use('/api/v1/users', createUserRouter());
+  app.use('/api/v1/flags', createFeatureRouter());
 
   app.all('*', (req, res, next) => {
     next(

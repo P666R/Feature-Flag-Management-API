@@ -52,3 +52,10 @@ export const updateFeatureDTOSchema = z
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided for update',
   });
+
+// * Toggle Group DTO Schema
+export const toggleGroupDTOSchema = z.object({
+  enabled: z.boolean().refine((val) => typeof val === 'boolean', {
+    message: 'Enabled must be a boolean',
+  }),
+});
