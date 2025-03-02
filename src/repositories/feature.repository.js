@@ -29,10 +29,6 @@ const createFeatureRepository = ({ Feature = createFeatureModel() } = {}) => {
     return await Feature.findOne({ name }).select('-_id -__v');
   };
 
-  const findFeaturesByGroup = async (group) => {
-    return await Feature.find({ group }).select('-_id -__v');
-  };
-
   const updateFeature = async (id, data) => {
     try {
       const feature = await Feature.findOneAndUpdate({ id }, data, {
@@ -69,7 +65,6 @@ const createFeatureRepository = ({ Feature = createFeatureModel() } = {}) => {
     findAllFeatures,
     findFeatureById,
     findFeatureByName,
-    findFeaturesByGroup,
     updateFeature,
     deleteFeature,
   };

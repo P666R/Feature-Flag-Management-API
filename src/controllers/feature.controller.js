@@ -51,13 +51,11 @@ const createFeatureController = ({
     }
   };
 
-  const toggleGroup = async (req, res, next) => {
+  const isFeatureEnabled = async (req, res, next) => {
     try {
-      const count = await featureService.toggleGroup(
-        req.params.groupName,
-        req.body.enabled,
-      );
-      res.status(200).json({ data: { updatedCount: count } });
+      const { name } = req.params;
+      const enabled = await featureService.isFeatureEnabled(name);
+      res.status(200).json({ data: { enabled } });
     } catch (error) {
       next(error);
     }
@@ -69,7 +67,7 @@ const createFeatureController = ({
     getFeature,
     updateFeature,
     deleteFeature,
-    toggleGroup,
+    isFeatureEnabled,
   };
 };
 

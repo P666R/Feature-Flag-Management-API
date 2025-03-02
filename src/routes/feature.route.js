@@ -5,7 +5,6 @@ import createValidatorMiddleware from '../middleware/validator.middleware.js';
 import {
   createFeatureDTOSchema,
   updateFeatureDTOSchema,
-  toggleGroupDTOSchema,
 } from '../dtos/feature.dto.js';
 
 const createFeatureRouter = ({
@@ -14,11 +13,17 @@ const createFeatureRouter = ({
   const { authMiddleware, restrictTo } = createAuthMiddleware();
   const router = express.Router();
 
-  // * Apply authentication and authorization middleware
+  // Public endpoint for checking feature status (authenticated users)
+  router.get(
+    '/:name/enabled',
+    authMiddleware,
+    featureController.isFeatureEnabled,
+  );
+
+  // Admin-only routes
   router.use(authMiddleware);
   router.use(restrictTo('admin'));
 
-  // * Routes with validation middleware
   router
     .route('/')
     .get(featureController.getAllFeatures)
@@ -35,13 +40,6 @@ const createFeatureRouter = ({
       featureController.updateFeature,
     )
     .delete(featureController.deleteFeature);
-
-  router
-    .route('/group/:groupName/toggle')
-    .patch(
-      createValidatorMiddleware(toggleGroupDTOSchema),
-      featureController.toggleGroup,
-    );
 
   return router;
 };

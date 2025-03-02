@@ -45,7 +45,6 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.10.1",
     "morgan": "^1.10.0",
-    "rate-limiter-flexible": "^5.0.5",
     "redis": "^4.7.0",
     "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0",
