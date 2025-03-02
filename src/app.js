@@ -6,6 +6,38 @@ import { errorMiddleware, NotFoundError } from './errors/index.js';
 import createUserRouter from './routes/user.route.js';
 import createIndexRouter from './routes/index.route.js';
 import createFeatureRouter from './routes/feature.route.js';
+import swaggerUi from 'swagger-ui-express';
+import swaggerJSDoc from 'swagger-jsdoc';
+
+// * Swagger configuration
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Feature Flag Management API',
+      version: '1.0.0',
+      description: 'A simple API for managing feature flags and users',
+    },
+    servers: [
+      {
+        url: 'http://localhost:3000/api/v1',
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
+    security: [{ bearerAuth: [] }], // * Apply globally, overridden per route if needed
+  },
+  apis: ['./src/routes/*.js'], // * Include all route files
+};
+
+const swaggerSpec = swaggerJSDoc(swaggerOptions);
 
 // * Factory function to create the Express app
 const createApp = () => {
@@ -21,6 +53,9 @@ const createApp = () => {
       }),
     );
   }
+
+  // * Mount Swagger UI at /api-docs
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
   app.use('/api/v1', createIndexRouter());
   app.use('/api/v1/users', createUserRouter());
