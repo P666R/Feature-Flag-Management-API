@@ -1,22 +1,23 @@
 {
   "name": "feature-flag-management-api",
+  "private": true,
   "version": "1.0.0",
   "description": "",
   "main": "src/server.js",
-  "private": true,
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier . --write .",
+    "format:check": "prettier . --check",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc --noEmit",
     "prepare": "husky"
   },
   "lint-staged": {
     "*.js": [
       "eslint . --fix",
-      "prettier --write ."
+      "prettier . --write"
     ],
     "*.{json,yml,yaml,md}": "prettier --write ."
   },
