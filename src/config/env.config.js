@@ -1,11 +1,14 @@
 import dotenv from 'dotenv';
+import process from 'process';
 import { cleanEnv, port, str } from 'envalid';
 
-dotenv.config();
+const env = process.env.NODE_ENV || 'development';
+dotenv.config({ path: env === 'test' ? '.env.test' : '.env' });
 
-// eslint-disable-next-line no-undef
 export const envConfig = cleanEnv(process.env, {
-  NODE_ENV: str({ choices: ['development', 'production', 'test'] }),
+  NODE_ENV: str({
+    choices: ['development', 'production', 'test'],
+  }),
   PORT: port({ default: 3000 }),
   MONGODB_URI: str(),
   JWT_SECRET: str(),
