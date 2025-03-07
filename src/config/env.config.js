@@ -11,4 +11,5 @@ export const envConfig = cleanEnv(process.env, {
   JWT_SECRET: str(),
   JWT_EXPIRES_IN: str(),
   REDIS_URI: str({ default: 'redis://localhost:6379' }),
+  API_BASE_URL: str({ default: 'http://localhost:3000/api/v1' }),
 });

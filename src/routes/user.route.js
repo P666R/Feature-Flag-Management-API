@@ -1,4 +1,5 @@
 import express from 'express';
+import userLimiter from '../utils/rateLimiter.js';
 import createUserController from '../controllers/user.controller.js';
 import createAuthMiddleware from '../middleware/auth.middleware.js';
 import createValidatorMiddleware from '../middleware/validator.middleware.js';
@@ -37,10 +38,21 @@ const createUserRouter = ({ userController = createUserController() } = {}) => {
    *                   $ref: '#/components/schemas/User'
    *       400:
    *         description: Invalid request data
+   *       429:
+   *         description: Too many registration requests from this IP, please try again after 15 minutes
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 message:
+   *                   type: string
+   *                   example: Too many registration requests from this IP, please try again after 15 minutes
    */
   router
     .route('/register')
     .post(
+      userLimiter(5, 'registration'),
       createValidatorMiddleware(createUserDTOSchema),
       userController.register,
     );
@@ -72,10 +84,24 @@ const createUserRouter = ({ userController = createUserController() } = {}) => {
    *                   type: string
    *       400:
    *         description: Invalid credentials
+   *       429:
+   *         description: Too many login requests from this IP, please try again after 15 minutes
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 message:
+   *                   type: string
+   *                   example: Too many login requests from this IP, please try again after 15 minutes
    */
   router
     .route('/login')
-    .post(createValidatorMiddleware(loginUserDTOSchema), userController.login);
+    .post(
+      userLimiter(5, 'login'),
+      createValidatorMiddleware(loginUserDTOSchema),
+      userController.login,
+    );
 
   // Protected routes
   router.use(authMiddleware);
